@@ -6,6 +6,9 @@
  *
  * Setup: script.google.com → New project → paste this file → Deploy → New deployment →
  * type "Web app", Execute as "Me", Who has access "Anyone" → copy the /exec URL into the app's settings.
+ *
+ * GitHub search: add a Script property named GITHUB_TOKEN (Project Settings → Script properties).
+ * The token stays here on Google's side and is never sent to the browser.
  */
 var ALLOWED_HOSTS = [
   'www.ultimate-guitar.com',
@@ -15,8 +18,35 @@ var ALLOWED_HOSTS = [
 ];
 var FILE_RE = /\.(cho|chopro|chordpro|crd|pro|txt)(\?|$)/i;
 
+// Only these GitHub API calls are forwarded with the token.
+var GITHUB_PATHS = [/^\/search\/code\?/, /^\/repos\/[\w.-]+\/[\w.-]+$/];
+
+function githubApi(path) {
+  if (!GITHUB_PATHS.some(function (re) { return re.test(path); })) throw new Error('GitHub-anropet är inte tillåtet');
+  var token = PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN');
+  if (!token) throw new Error('GITHUB_TOKEN saknas i skriptets egenskaper');
+  var res = UrlFetchApp.fetch('https://api.github.com' + path, {
+    muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'User-Agent': 'chopro-dl-proxy' },
+  });
+  var code = res.getResponseCode();
+  if (code === 401) throw new Error('GITHUB_TOKEN är ogiltig eller har gått ut');
+  if (code >= 400) throw new Error('GitHub svarade ' + code);
+  return res.getContentText();
+}
+
 function doGet(e) {
-  var url = (e && e.parameter && e.parameter.url) || '';
+  var params = (e && e.parameter) || {};
+  if (params.gh) {
+    var body;
+    try { body = githubApi(params.gh); } catch (err) { body = 'PROXY_ERROR: ' + err.message; }
+    return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.TEXT);
+  }
+  if (params.ping) {
+    var hasToken = !!PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN');
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, github: hasToken })).setMimeType(ContentService.MimeType.TEXT);
+  }
+  var url = params.url || '';
   var out;
   try {
     var m = /^https?:\/\/([^\/?#:]+)/i.exec(url);

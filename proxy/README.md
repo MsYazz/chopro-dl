@@ -13,6 +13,15 @@ Proxyn släpper bara igenom Ultimate Guitar, DuckDuckGo och länkar som slutar p
 5. Klicka **Driftsätt** och godkänn behörigheterna (Google varnar för att appen inte är verifierad, välj *Avancerat → Gå till projektet*).
 6. Kopiera webbappens URL (slutar på `/exec`) och lägg in den som repository-variabeln `PROXY_URL` (*Settings → Secrets and variables → Actions → Variables*). Kör sedan deploy-workflowet igen. Du kan också klistra in den under **⚙ Inställningar → Proxy-URL** i appen.
 
+### GitHub-sökning via proxyn
+
+För att GitHub-sökningen ska fungera utan att varje enhet behöver en egen token:
+
+1. Skapa en token på [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new): välj **Public repositories** och inga behörigheter.
+2. I Apps Script-projektet: **Projektinställningar** (kugghjulet) → **Skriptegenskaper** → **Lägg till skriptegenskap**. Egenskap: `GITHUB_TOKEN`, värde: din token. Spara.
+
+Token stannar hos Google och skickas aldrig till webbläsaren. Proxyn vidarebefordrar bara kodsökning och repo-info till GitHub. Du kan kontrollera uppsättningen genom att öppna `<din /exec-URL>?ping=1`, som ska visa `"github":true`.
+
 Om du ändrar skriptet senare måste du göra en ny driftsättning (eller *Hantera driftsättningar → Redigera → Ny version*) för att ändringen ska gälla.
 
 ## Begränsningar
