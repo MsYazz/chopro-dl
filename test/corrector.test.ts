@@ -11,7 +11,7 @@ describe('metadata', () => {
     expect(fix('{artist: Deep Purple}\n{st: Deep Purple}')).toBe('{artist: Deep Purple}');
   });
   it('leaves title/key/tempo alone', () => {
-    const s = '{title: Smoke}\n{t: X}\n{key: G}\n{tempo: 120}';
+    const s = '{title: Smoke}\n{key: G}\n{tempo: 120}';
     expect(fix(s)).toBe(s);
   });
   it('fixes stray brackets in directives', () => {
@@ -101,5 +101,35 @@ describe('log', () => {
   it('records line, before and after', () => {
     const r = correct('{title: X}\nIntro]\n');
     expect(r.changes).toEqual([{ line: 2, before: 'Intro]', after: '{comment: Intro}', rule: 'Rubrik blev {comment:}' }]);
+  });
+});
+
+describe('official ChordPro directives', () => {
+  it('expands short forms to full names', () => {
+    expect(fix('{t: Smoke}\n{soc}\n[G]Smoke\n{eoc}')).toBe('{title: Smoke}\n{start_of_chorus}\n[G]Smoke\n{end_of_chorus}');
+    expect(fix('{ci: soft}')).toBe('{comment_italic: soft}');
+  });
+  it('accepts {name value}, attributes and selectors without flags', () => {
+    const s = '{title Smoke}\n{start_of_verse label="Verse 1"}\nHi\n{end_of_verse}\n{define-guitar: Am base-fret 1 frets 0 2 2 1 0 0}\n{x_mspro_pedal: 1}';
+    const r = correct(s);
+    expect(r.text).toBe(s);
+    expect(r.flags).toEqual([]);
+  });
+  it('removes a selector from an end directive', () => {
+    expect(fix('{start_of_verse-soprano}\nla\n{end_of_verse-soprano}')).toBe('{start_of_verse-soprano}\nla\n{end_of_verse}');
+  });
+  it('flags unknown directives and unbalanced environments', () => {
+    const r = correct('{foo: bar}\n{start_of_chorus}\nla\n{end_of_verse}');
+    const reasons = r.flags.map((f) => f.reason).join(' | ');
+    expect(reasons).toMatch(/Okänt direktiv.*foo/);
+    expect(reasons).toMatch(/matchar inte/);
+    expect(reasons).toMatch(/avslutas aldrig/);
+  });
+  it('passes grid and delegated environments through untouched', () => {
+    const s = '{start_of_grid}\n| Am . . . | C . . . |\n{end_of_grid}\n{start_of_abc}\nX:1\n[K:G]\n{end_of_abc}';
+    expect(correct(s)).toMatchObject({ text: s, flags: [] });
+  });
+  it('still turns {st:} into {artist:} per the project spec', () => {
+    expect(fix('{st: Deep Purple}')).toBe('{artist: Deep Purple}');
   });
 });

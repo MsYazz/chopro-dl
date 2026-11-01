@@ -8,8 +8,9 @@ export type Item =
 
 export interface Song { meta: Record<string, string>; items: Item[] }
 
-const META = new Set(['title', 't', 'subtitle', 'artist', 'composer', 'album', 'year', 'key', 'capo', 'tempo', 'time', 'duration', 'lyricist', 'copyright']);
-const ALIAS: Record<string, string> = { t: 'title', soc: 'start_of_chorus', eoc: 'end_of_chorus', sov: 'start_of_verse', eov: 'end_of_verse', sob: 'start_of_bridge', eob: 'end_of_bridge', sot: 'start_of_tab', eot: 'end_of_tab', c: 'comment', ci: 'comment_italic', cb: 'comment_box' };
+import { parseDirective, environmentOf, RAW_ENVIRONMENTS } from './directives';
+
+const META = new Set(['title', 'subtitle', 'artist', 'composer', 'album', 'year', 'key', 'capo', 'tempo', 'time', 'duration', 'lyricist', 'copyright']);
 
 export function parseSong(text: string): Song {
   const meta: Record<string, string> = {};
@@ -18,11 +19,13 @@ export function parseSong(text: string): Song {
   text.split('\n').forEach((raw, i) => {
     const line = i + 1;
     const t = raw.trim();
-    if (env === 'tab' && !/^\{\s*(eot|end_of_tab)\s*\}$/i.test(t)) { items.push({ type: 'tab', text: raw, line }); return; }
-    const d = /^\{\s*([A-Za-z_]\w*)\s*(?::\s*(.*?))?\s*\}$/.exec(t);
+    const d = t.startsWith('{') ? parseDirective(t) : null;
+    const isEnd = !!d && environmentOf(d.name)?.kind === 'end';
+    if (env && RAW_ENVIRONMENTS.has(env) && !isEnd) { items.push({ type: 'tab', text: raw, line }); return; }
     if (d) {
-      const name = ALIAS[d[1].toLowerCase()] ?? d[1].toLowerCase();
-      const value = d[2] ?? '';
+      const name = d.name;
+      const label = /label\s*=\s*["']([^"']*)["']/.exec(d.value)?.[1];
+      const value = d.attributes ? (label ?? '') : d.value;
       if (META.has(name)) { if (!(name in meta)) meta[name] = value; return; }
       if (name === 'comment' || name === 'comment_italic' || name === 'comment_box' || name === 'highlight') {
         items.push({ type: 'comment', text: value, style: name === 'comment_italic' ? 'italic' : name === 'comment_box' ? 'box' : 'normal', line });
