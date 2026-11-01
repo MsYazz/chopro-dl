@@ -29,6 +29,7 @@ jobs:
       - run: npm run build
         env:
           VITE_PROXY_URL: ${{ vars.PROXY_URL }}
+          VITE_GITHUB_TOKEN: ${{ secrets.GHUB_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main'
         with:

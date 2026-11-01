@@ -9,7 +9,7 @@ import { correct } from './lib/corrector';
 import { transposeText, findKey, type AccidentalMode } from './lib/transpose';
 import { isChord } from './lib/chords';
 import { parseSong } from './lib/parse';
-import { loadSettings, saveSettings, effectiveProxy, BUILT_IN_PROXY } from './settings';
+import { loadSettings, saveSettings, effectiveProxy, BUILT_IN_PROXY, BUILT_IN_GITHUB_TOKEN } from './settings';
 import { Rating } from './components/Rating';
 import { Preview } from './components/Preview';
 import { useInstallPrompt, useOnline, takeSharedInput } from './pwa';
@@ -21,7 +21,7 @@ interface Opened { song: LoadedSong; prepared: Prepared }
 
 export default function App() {
   const [stored, setStored] = useState<Settings>(loadSettings);
-  const settings: Settings = { ...stored, proxyUrl: effectiveProxy(stored) };
+  const settings: Settings = { ...stored, githubToken: stored.githubToken || BUILT_IN_GITHUB_TOKEN, proxyUrl: effectiveProxy(stored) };
   const [showSettings, setShowSettings] = useState(false);
   const [query, setQuery] = useState('');
   const [sources, setSources] = useState<Record<SourceId, boolean>>({ github: true, ug: true, web: true });
@@ -152,7 +152,7 @@ export default function App() {
         <section className="panel settings">
           <label>GitHub-token
             <input type="password" value={stored.githubToken} placeholder="github_pat_…" onChange={(e) => updateSettings({ ...stored, githubToken: e.target.value.trim() })} />
-            <small>Krävs för att söka i GitHub. Skapa en <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">fine-grained token</a> utan några behörigheter (bara läsning av publika repon). Sparas bara i din webbläsare.</small>
+            <small>{BUILT_IN_GITHUB_TOKEN ? 'En token är redan inbyggd i appen. Fyll bara i här om du vill använda en egen. ' : ''}Behövs inte om appen har en inbyggd token eller proxyn har GITHUB_TOKEN. Vill du använda en egen: skapa en <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">fine-grained token</a> utan några behörigheter (bara läsning av publika repon). Sparas bara i din webbläsare.</small>
           </label>
           <label>Proxy-URL (Google Apps Script)
             <input type="url" value={stored.proxyUrl} placeholder={BUILT_IN_PROXY || 'https://script.google.com/macros/s/…/exec'} onChange={(e) => updateSettings({ ...stored, proxyUrl: e.target.value.trim() })} />
