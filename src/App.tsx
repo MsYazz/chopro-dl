@@ -3,6 +3,8 @@ import type { SearchHit, Settings, SourceId, LoadedSong } from './lib/sources/ty
 import { searchGithub, githubBlobToRaw } from './lib/sources/github';
 import { searchUg, loadUgTab } from './lib/sources/ug';
 import { searchWeb } from './lib/sources/web';
+import { SITES, searchSite } from './lib/sources/sites';
+import { extractChordSheet, toChordProFile } from './lib/sources/extract';
 import { fetchAny } from './lib/sources/fetcher';
 import { prepare, suggestFileName, type Prepared } from './lib/pipeline';
 import { correct } from './lib/corrector';
@@ -15,7 +17,7 @@ import { Preview } from './components/Preview';
 import { useInstallPrompt, useOnline, takeSharedInput } from './pwa';
 import { loadRecent, addRecent, removeRecent, type RecentSong } from './recent';
 
-const SOURCE_LABEL: Record<SourceId, string> = { github: 'GitHub', ug: 'Ultimate Guitar', web: 'Webben' };
+const SOURCE_LABEL: Record<SourceId, string> = { github: 'GitHub', ug: 'Ultimate Guitar', chordie: 'Chordie', echords: 'E-Chords', web: 'Webben' };
 
 interface Opened { song: LoadedSong; prepared: Prepared }
 
@@ -24,7 +26,7 @@ export default function App() {
   const settings: Settings = { ...stored, githubToken: stored.githubToken || BUILT_IN_GITHUB_TOKEN, proxyUrl: effectiveProxy(stored) };
   const [showSettings, setShowSettings] = useState(false);
   const [query, setQuery] = useState('');
-  const [sources, setSources] = useState<Record<SourceId, boolean>>({ github: true, ug: true, web: true });
+  const [sources, setSources] = useState<Record<SourceId, boolean>>({ github: true, ug: true, chordie: true, echords: true, web: true });
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [errors, setErrors] = useState<Partial<Record<SourceId, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -61,7 +63,9 @@ export default function App() {
     if (!q) return;
     setBusy(true); setHits([]); setErrors({}); setSearched(true);
     const jobs: [SourceId, (q: string, s: Settings) => Promise<SearchHit[]>][] = [
-      ['github', searchGithub], ['ug', searchUg], ['web', searchWeb],
+      ['github', searchGithub], ['ug', searchUg],
+      ['chordie', (q, s) => searchSite(SITES.chordie, q, s)], ['echords', (q, s) => searchSite(SITES.echords, q, s)],
+      ['web', searchWeb],
     ];
     await Promise.all(jobs.filter(([id]) => sources[id]).map(async ([id, fn]) => {
       try {
@@ -101,10 +105,18 @@ export default function App() {
     if (/^https?:\/\/\S+$/.test(v)) {
       setLoadingId('import');
       try {
-        const song = /ultimate-guitar\.com/.test(v)
-          ? await loadUgTab(v, settings)
-          : { text: await fetchAny(githubBlobToRaw(v), settings), fileName: decodeURIComponent(v.split('/').pop()!.split('?')[0]) || 'song.pro', sourceUrl: v };
-        open(song);
+        if (/ultimate-guitar\.com/.test(v)) { open(await loadUgTab(v, settings)); } else {
+          const name = decodeURIComponent(v.split('/').pop()!.split('?')[0]) || 'song.pro';
+          const body = await fetchAny(githubBlobToRaw(v), settings);
+          if (/^\s*(<!doctype|<html)/i.test(body)) {
+            // A web page (e.g. Chordie or E-Chords): pull out the chord sheet.
+            const sheet = extractChordSheet(body);
+            if (!sheet) throw new Error('Hittade inga ackord på sidan.');
+            open({ text: toChordProFile(sheet), fileName: `${sheet.title || name}.pro`, sourceUrl: v });
+          } else {
+            open({ text: body, fileName: name, sourceUrl: v });
+          }
+        }
       } catch (err) { setLoadError((err as Error).message); }
       setLoadingId(null);
     } else {
