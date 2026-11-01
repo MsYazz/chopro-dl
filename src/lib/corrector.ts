@@ -2,20 +2,12 @@
 // Principle: fix only what is unambiguous, and flag the rest for manual review.
 import { isChord, isBracketContent } from './chords';
 import { isSectionName } from './sections';
+import { parseDirective, formatDirective, isKnownDirective, environmentOf, RAW_ENVIRONMENTS } from './directives';
 
 export interface Change { line: number; before: string; after: string; rule: string }
 export interface Flag { line: number; text: string; reason: string }
 export interface CorrectionResult { text: string; changes: Change[]; flags: Flag[] }
 
-const KNOWN_DIRECTIVES = new Set([
-  'title', 't', 'subtitle', 'artist', 'composer', 'lyricist', 'album', 'year', 'key', 'time', 'tempo',
-  'duration', 'capo', 'copyright', 'arranger', 'sorttitle', 'meta', 'comment', 'c', 'comment_italic', 'ci',
-  'comment_box', 'cb', 'highlight', 'image', 'chorus', 'define', 'chord', 'new_page', 'np',
-  'new_physical_page', 'npp', 'column_break', 'colb', 'columns', 'col', 'new_song', 'ns', 'pagetype',
-  'titles', 'grid', 'g', 'no_grid', 'ng', 'transpose', 'textfont', 'textsize', 'textcolour', 'chordfont',
-  'chordsize', 'chordcolour', 'tabfont', 'tabsize', 'tabcolour', 'soc', 'eoc', 'sov', 'eov', 'sob', 'eob',
-  'sot', 'eot', 'sog', 'eog', 'st', 'tag', 'keywords', 'language', 'midi', 'pdf', 'diagrams', 'x_',
-]);
 
 const PATCH = /^[A-Z]:\d{1,3}$/;
 const TAB_LINE = /^\s*[eBGDAEbgda]\s*[|:-]+.*[-|].*$|^\s*[-|0-9hpbr/\\~x()]{8,}\s*$/;
@@ -140,8 +132,9 @@ export function correct(input: string): CorrectionResult {
     if (m) artists.add(m[1].toLowerCase());
   }
 
-  let inTab = false;
+  let rawEnv: string | null = null; // inside {start_of_tab}, {start_of_grid}, abc, ly, svg, textblock
   let prevWasTab = false;
+  const openEnvs: { env: string; line: number; text: string }[] = [];
 
   lines.forEach((line, idx) => {
     const n = idx + 1;
@@ -154,10 +147,11 @@ export function correct(input: string): CorrectionResult {
 
     if (!t) { out.push(line); prevWasTab = false; return; }
 
-    if (inTab) {
-      if (/^\{\s*(eot|end_of_tab)\s*\}$/i.test(t)) inTab = false;
-      out.push(line);
-      return;
+    if (rawEnv) {
+      const d = parseDirective(t);
+      const e = d && environmentOf(d.name);
+      if (!(e && e.kind === 'end' && e.env === rawEnv)) { out.push(line); return; }
+      // the end directive itself is handled below
     }
 
     // Directives
@@ -166,10 +160,10 @@ export function correct(input: string): CorrectionResult {
       let text = fixed.text;
       const rules: string[] = fixed.rule ? [fixed.rule] : [];
       if (fixed.issue) flag(fixed.issue);
-      const dm = /^\{\s*([A-Za-z_][\w-]*)\s*(?::\s*([\s\S]*?))?\s*\}$/.exec(text);
-      if (dm) {
-        const name = dm[1].toLowerCase();
-        const value = dm[2] ?? '';
+      const d = parseDirective(text);
+      if (d) {
+        const name = d.raw;
+        const value = d.value;
         if (name === 'st') {
           if (artists.has(value.toLowerCase())) {
             changes.push({ line: n, before: line, after: '', rule: '{st:} togs bort – samma artist fanns redan' });
@@ -178,13 +172,34 @@ export function correct(input: string): CorrectionResult {
           artists.add(value.toLowerCase());
           text = `{artist: ${value}}`;
           rules.push('{st:} blev {artist:}');
-        } else if (name === 'c') {
-          text = `{comment: ${value}}`;
-          rules.push('{c:} blev {comment:}');
-        } else if (name === 'sot' || name === 'start_of_tab') {
-          inTab = true;
-        } else if (!KNOWN_DIRECTIVES.has(name) && !/^(start|end)_of_\w+$/.test(name) && !name.startsWith('x_')) {
-          flag(`Ovanligt direktiv: {${dm[1]}}`);
+        } else {
+          let selector = d.selector;
+          let reformat = false;
+          const env = environmentOf(d.name);
+          if (env?.kind === 'end' && selector) {
+            selector = '';
+            reformat = true;
+            rules.push('Selektor togs bort från slutdirektivet');
+          }
+          if (d.name !== d.raw) { reformat = true; rules.push(`{${d.raw}} blev {${d.name}}`); }
+          if (reformat) text = formatDirective({ ...d, selector });
+
+          if (!isKnownDirective(d.name)) {
+            flag(env ? `Okänd miljö: {${d.name}}` : `Okänt direktiv enligt ChordPro-standarden: {${d.name}}`);
+          } else if (['title', 'artist', 'key', 'capo', 'tempo'].includes(d.name) && !value.trim()) {
+            flag(`{${d.name}} saknar värde`);
+          }
+
+          if (env?.kind === 'start') {
+            if (openEnvs.length) flag(`{${d.name}} börjar innan {start_of_${openEnvs[openEnvs.length - 1].env}} är avslutad`);
+            openEnvs.push({ env: env.env, line: n, text: line });
+            if (RAW_ENVIRONMENTS.has(env.env)) rawEnv = env.env;
+          } else if (env?.kind === 'end') {
+            const top = openEnvs[openEnvs.length - 1];
+            if (top && top.env === env.env) openEnvs.pop();
+            else flag(top ? `{${d.name}} matchar inte öppen {start_of_${top.env}}` : `{${d.name}} utan matchande {start_of_${env.env}}`);
+            if (rawEnv === env.env) rawEnv = null;
+          }
         }
       } else if (!fixed.issue) {
         flag('Direktivet kunde inte tolkas');
@@ -249,7 +264,9 @@ export function correct(input: string): CorrectionResult {
     else out.push(line);
   });
 
-  // Final validation of the whole result.
+  for (const o of openEnvs) flags.push({ line: o.line, text: o.text, reason: `{start_of_${o.env}} avslutas aldrig` });
+  flags.sort((a, b) => a.line - b.line);
+
   const text = out.join('\n');
   return { text, changes, flags };
 }

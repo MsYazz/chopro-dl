@@ -15,6 +15,10 @@ var ALLOWED_HOSTS = [
   'tabs.ultimate-guitar.com',
   'ultimate-guitar.com',
   'html.duckduckgo.com',
+  'www.chordie.com',
+  'chordie.com',
+  'www.e-chords.com',
+  'e-chords.com',
 ];
 var FILE_RE = /\.(cho|chopro|chordpro|crd|pro|txt)(\?|$)/i;
 

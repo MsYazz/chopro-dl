@@ -53,3 +53,14 @@ describe('ultimate guitar', () => {
     expect(out).toBe('{title: Wonderwall}\n{artist: Oasis}\n{key: F#m}\n{capo: 2}\n\n{comment: Intro}\n[Em7]  [G]\n\n{comment: Verse 1}\n[Em7]Today is gonn[G]a be the day');
   });
 });
+
+describe('directive syntax in preview and transpose', () => {
+  it('handles {key G} and labels on verses', () => {
+    expect(transposeText('{key G}\n[G]x', 2)).toBe('{key A}\n[A]x');
+    const song = parseSong('{t: X}\n{start_of_verse label="Vers 1"}\n[G]la\n{end_of_verse}\n{start_of_grid}\n| G . |\n{end_of_grid}');
+    expect(song.meta.title).toBe('X');
+    expect(song.items[0]).toMatchObject({ type: 'comment', text: 'Vers 1' });
+    expect(song.items[1]).toMatchObject({ type: 'lyric', env: 'verse' });
+    expect(song.items[2]).toMatchObject({ type: 'tab', text: '| G . |' });
+  });
+});

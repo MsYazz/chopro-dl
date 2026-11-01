@@ -3,7 +3,7 @@ import { transposeChord, isChord, accidentalsForKey, type Accidentals } from './
 export type AccidentalMode = 'auto' | Accidentals;
 
 export function findKey(text: string): string | null {
-  const m = /\{\s*key\s*:\s*([^}]+?)\s*\}/i.exec(text);
+  const m = /\{\s*key(?:-[\w!]+)?(?:\s*:\s*|\s+)([^}]+?)\s*\}/i.exec(text);
   return m ? m[1] : null;
 }
 
@@ -31,11 +31,11 @@ export function transposeText(text: string, semis: number, mode: AccidentalMode 
   let inTab = false;
   return text.split('\n').map((line) => {
     const t = line.trim();
-    if (/^\{\s*(sot|start_of_tab)\b/i.test(t)) inTab = true;
-    if (/^\{\s*(eot|end_of_tab)\b/i.test(t)) { inTab = false; return line; }
+    if (/^\{\s*(sot|sog|start_of_(tab|grid|abc|ly|svg))\b/i.test(t)) inTab = true;
+    if (/^\{\s*(eot|eog|end_of_(tab|grid|abc|ly|svg))\b/i.test(t)) { inTab = false; return line; }
     if (inTab) return line;
     let l = line.replace(/\[([^[\]]+)\]/g, (m, c) => (isChord(c) ? `[${transposeChord(c, semis, acc)}]` : m));
-    l = l.replace(/(\{\s*key\s*:\s*)([^}]+?)(\s*\})/i, (m, a, k, b) => (isChord(k) ? a + transposeChord(k, semis, acc) + b : m));
+    l = l.replace(/(\{\s*key(?:-[\w!]+)?(?:\s*:\s*|\s+))([^}]+?)(\s*\})/i, (m, a, k, b) => (isChord(k) ? a + transposeChord(k, semis, acc) + b : m));
     return l;
   }).join('\n');
 }

@@ -1,4 +1,4 @@
-export type SourceId = 'github' | 'ug' | 'web';
+export type SourceId = 'github' | 'ug' | 'chordie' | 'echords' | 'web';
 
 export interface SearchHit {
   id: string;

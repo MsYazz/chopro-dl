@@ -33,6 +33,14 @@ Följer *Specifikation för korrigering av ChordPro-bibliotek v1.1*:
 | `{key:A}]}` | `{key:A}` |
 | `Am   G   C` (ackordrad utan klamrar) | `[Am]   [G]   [C]` |
 
+Dessutom följs den officiella [ChordPro-direktivlistan](https://www.chordpro.org/chordpro/chordpro-directives/):
+
+- Kortformer skrivs ut med fullt namn, som referensen rekommenderar: `{t:}` → `{title:}`, `{soc}` → `{start_of_chorus}`, `{ci:}` → `{comment_italic:}` osv. Undantag: `{st:}` blir `{artist:}` enligt korrigeringsspecen (i standarden betyder `st` egentligen *subtitle*).
+- Båda syntaxerna `{name: värde}` och `{name värde}`, attribut som `{start_of_verse label="Vers 1"}`, selektorer som `{define-guitar: …}` och egna `x_`-direktiv godkänns.
+- Selektor på ett slutdirektiv tas bort (`{end_of_verse-soprano}` → `{end_of_verse}`), eftersom standarden inte tillåter det.
+- Okända direktiv, direktiv utan värde (t.ex. tom `{title}`) och miljöer som inte matchar eller aldrig avslutas flaggas för granskning.
+- Innehåll i `tab`, `grid`, `abc`, `ly`, `svg` och `textblock` lämnas orört.
+
 `Intro]` blir aldrig `[Intro]`. Rader som inte kan tolkas säkert ändras inte utan visas under **Granska**: tabulatur, okänt innehåll i hakparenteser, ovanliga direktiv, ensamma klamrar och okända rubriker.
 
 ## Kom igång
