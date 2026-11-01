@@ -36,6 +36,17 @@ That they're gonna throw it back to you</pre></body></html>`;
     expect(fixed).toBe('{title: Wonderwall}\n{artist: Oasis}\n\n[Em7]Today is gonn[G]a be the day\n[Dsus4]That they\'re gonna [A7sus4]throw it back to you');
   });
 
+  it('keeps rows in separate block elements on separate lines', () => {
+    const html = '<html><body><div class="sheet"><div>Am  G</div><div>Hello there</div><div>C   D</div><div>World again</div></div></body></html>';
+    const x = extractChordSheet(html)!;
+    expect(prepare(x.text).text).toBe('[Am]Hell[G]o there\n[C]Worl[D]d again');
+  });
+
+  it('does not cut a sheet in a <pre> at blank lines', () => {
+    const html = '<html><body><pre>{title: X}\n[G]one\n\n\n\n\n[C]two</pre></body></html>';
+    expect(extractChordSheet(html)!.text).toBe('{title: X}\n[G]one\n\n\n\n\n[C]two');
+  });
+
   it('returns null for pages without chords', () => {
     expect(extractChordSheet('<html><body><p>Hello world, nothing here.</p></body></html>')).toBeNull();
   });

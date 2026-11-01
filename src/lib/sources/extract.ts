@@ -15,14 +15,24 @@ function score(text: string): number {
 function textOf(el: Element): string {
   const clone = el.cloneNode(true) as Element;
   clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  // Rows in separate block elements (div, p, li ...) must stay on separate lines.
+  clone.querySelectorAll('div, p, li, tr, h1, h2, h3, h4, h5, h6, pre, section, article').forEach((b) => b.append('\n'));
   clone.querySelectorAll('script, style').forEach((x) => x.remove());
   return (clone.textContent ?? '').replace(/ /g, ' ').replace(/\r\n?/g, '\n');
 }
 
-/** A ChordPro block embedded in the page text, starting at {t:...} or {title:...}. */
-function embeddedChordPro(text: string): string | null {
+/**
+ * A ChordPro block embedded in the page text, starting at {t:...} or {title:...}.
+ * In a dedicated container (pre/textarea) everything after the title is kept; elsewhere
+ * the block ends at a long run of blank lines so page chrome below it is left out.
+ */
+function embeddedChordPro(text: string, dedicated: boolean): string | null {
   const start = text.search(/\{\s*(t|title)\s*:/i);
   if (start < 0) return null;
+  if (dedicated) {
+    const block = text.slice(start).replace(/\s+$/, '');
+    return score(block) >= 3 ? block : null;
+  }
   const lines = text.slice(start).split('\n');
   const out: string[] = [];
   let blank = 0;
@@ -43,7 +53,7 @@ export function extractChordSheet(html: string): Extracted | null {
   for (const el of candidates) {
     const text = el.tagName === 'TEXTAREA' ? (el as HTMLTextAreaElement).value || el.textContent || '' : textOf(el);
     if (text.length > 60000) continue;
-    const embedded = embeddedChordPro(text);
+    const embedded = embeddedChordPro(text, el.tagName === 'PRE' || el.tagName === 'TEXTAREA');
     const t = embedded ?? text;
     const s = score(t) * (embedded ? 2 : 1) - text.length / 4000; // prefer the smallest element holding the sheet
     if (s > 3 && (!best || s > best.score)) best = { text: t, score: s };
