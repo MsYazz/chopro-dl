@@ -9,7 +9,7 @@ import { correct } from './lib/corrector';
 import { transposeText, findKey, type AccidentalMode } from './lib/transpose';
 import { isChord } from './lib/chords';
 import { parseSong } from './lib/parse';
-import { loadSettings, saveSettings } from './settings';
+import { loadSettings, saveSettings, effectiveProxy, BUILT_IN_PROXY } from './settings';
 import { Rating } from './components/Rating';
 import { Preview } from './components/Preview';
 
@@ -18,7 +18,8 @@ const SOURCE_LABEL: Record<SourceId, string> = { github: 'GitHub', ug: 'Ultimate
 interface Opened { song: LoadedSong; prepared: Prepared }
 
 export default function App() {
-  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [stored, setStored] = useState<Settings>(loadSettings);
+  const settings: Settings = { ...stored, proxyUrl: effectiveProxy(stored) };
   const [showSettings, setShowSettings] = useState(false);
   const [query, setQuery] = useState('');
   const [sources, setSources] = useState<Record<SourceId, boolean>>({ github: true, ug: true, web: true });
@@ -39,7 +40,7 @@ export default function App() {
   const [importText, setImportText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const updateSettings = (s: Settings) => { setSettings(s); saveSettings(s); };
+  const updateSettings = (s: Settings) => { setStored(s); saveSettings(s); };
   const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
 
   async function runSearch(e?: React.FormEvent) {
@@ -129,12 +130,12 @@ export default function App() {
       {showSettings && (
         <section className="panel settings">
           <label>GitHub-token
-            <input type="password" value={settings.githubToken} placeholder="github_pat_…" onChange={(e) => updateSettings({ ...settings, githubToken: e.target.value.trim() })} />
+            <input type="password" value={stored.githubToken} placeholder="github_pat_…" onChange={(e) => updateSettings({ ...stored, githubToken: e.target.value.trim() })} />
             <small>Krävs för att söka i GitHub. Skapa en <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">fine-grained token</a> utan några behörigheter (bara läsning av publika repon). Sparas bara i din webbläsare.</small>
           </label>
           <label>Proxy-URL (Google Apps Script)
-            <input type="url" value={settings.proxyUrl} placeholder="https://script.google.com/macros/s/…/exec" onChange={(e) => updateSettings({ ...settings, proxyUrl: e.target.value.trim() })} />
-            <small>Behövs för Ultimate Guitar och webbsökning. Se <a href="https://github.com/MsYazz/chopro-dl/blob/main/proxy/README.md" target="_blank" rel="noreferrer">instruktionen</a>.</small>
+            <input type="url" value={stored.proxyUrl} placeholder={BUILT_IN_PROXY || 'https://script.google.com/macros/s/…/exec'} onChange={(e) => updateSettings({ ...stored, proxyUrl: e.target.value.trim() })} />
+            <small>{BUILT_IN_PROXY ? 'En proxy är redan inbyggd i appen. Fyll bara i här om du vill använda en annan. ' : ''}Behövs för Ultimate Guitar och webbsökning. Se <a href="https://github.com/MsYazz/chopro-dl/blob/main/proxy/README.md" target="_blank" rel="noreferrer">instruktionen</a>.</small>
           </label>
         </section>
       )}

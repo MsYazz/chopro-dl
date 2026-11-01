@@ -11,7 +11,7 @@ Proxyn släpper bara igenom Ultimate Guitar, DuckDuckGo och länkar som slutar p
 3. Klicka **Driftsätt → Ny driftsättning**.
 4. Välj typ **Webbapp**. Sätt *Kör som* till **Jag** och *Vem har åtkomst* till **Alla**.
 5. Klicka **Driftsätt** och godkänn behörigheterna (Google varnar för att appen inte är verifierad, välj *Avancerat → Gå till projektet*).
-6. Kopiera webbappens URL (slutar på `/exec`) och klistra in den under **⚙ Inställningar → Proxy-URL** i ChoPro DL.
+6. Kopiera webbappens URL (slutar på `/exec`) och lägg in den som repository-variabeln `PROXY_URL` (*Settings → Secrets and variables → Actions → Variables*). Kör sedan deploy-workflowet igen. Du kan också klistra in den under **⚙ Inställningar → Proxy-URL** i appen.
 
 Om du ändrar skriptet senare måste du göra en ny driftsättning (eller *Hantera driftsättningar → Redigera → Ny version*) för att ändringen ska gälla.
 

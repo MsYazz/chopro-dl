@@ -50,3 +50,5 @@ Workflowet i `.github/workflows/deploy.yml` bygger och publicerar automatiskt vi
 ### Proxy
 
 Se [proxy/README.md](proxy/README.md) för hur du sätter upp den kostnadsfria Google Apps Script-proxyn.
+
+För att bygga in proxyn i appen: lägg dess URL som repository-variabel **`PROXY_URL`** under *Settings → Secrets and variables → Actions → Variables* och kör deploy-workflowet igen. URL:en hamnar i den publika koden, vilket är okej eftersom proxyn bara släpper igenom tillåtna sajter. Lägg **inte** in GitHub-token på samma sätt: den skulle bli synlig för alla.
