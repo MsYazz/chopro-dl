@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import type { SearchHit, Settings, SourceId, LoadedSong } from './lib/sources/types';
 import { searchGithub, githubBlobToRaw } from './lib/sources/github';
 import { searchUg, loadUgTab } from './lib/sources/ug';
@@ -12,6 +12,8 @@ import { parseSong } from './lib/parse';
 import { loadSettings, saveSettings, effectiveProxy, BUILT_IN_PROXY } from './settings';
 import { Rating } from './components/Rating';
 import { Preview } from './components/Preview';
+import { useInstallPrompt, useOnline, takeSharedInput } from './pwa';
+import { loadRecent, addRecent, removeRecent, type RecentSong } from './recent';
 
 const SOURCE_LABEL: Record<SourceId, string> = { github: 'GitHub', ug: 'Ultimate Guitar', web: 'Webben' };
 
@@ -39,6 +41,16 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [importText, setImportText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const [recent, setRecent] = useState<RecentSong[]>(loadRecent);
+  const { canInstall, install, installed, isIos } = useInstallPrompt();
+  const online = useOnline();
+
+  // Text or a link shared to the installed app from another app.
+  useEffect(() => {
+    const shared = takeSharedInput();
+    if (shared) { setImportText(shared); void importFrom(shared); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateSettings = (s: Settings) => { setStored(s); saveSettings(s); };
   const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
@@ -66,6 +78,8 @@ export default function App() {
     const prepared = prepare(song.text);
     setOpened({ song, prepared });
     setEdited(prepared.text);
+    const meta = parseSong(prepared.text).meta;
+    setRecent(addRecent({ ...song, title: meta.title || song.fileName.replace(/\.[^.]+$/, ''), artist: meta.artist, openedAt: Date.now() }));
     setSemis(0);
     setAcc('auto');
     setTab('preview');
@@ -78,8 +92,10 @@ export default function App() {
     setLoadingId(null);
   }
 
-  async function importFromInput() {
-    const v = importText.trim();
+  const importFromInput = () => importFrom(importText);
+
+  async function importFrom(input: string) {
+    const v = input.trim();
     if (!v) return;
     setLoadError('');
     if (/^https?:\/\/\S+$/.test(v)) {
@@ -124,8 +140,13 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <h1 className="logo" onClick={() => setOpened(null)}>ChoPro <span>DL</span></h1>
-        <button className="ghost" onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings}>⚙ Inställningar</button>
+        <div className="topbar-actions">
+          {canInstall && <button onClick={install}>Installera app</button>}
+          <button className="ghost" onClick={() => setShowSettings((v) => !v)} aria-expanded={showSettings}>⚙ Inställningar</button>
+        </div>
       </header>
+
+      {!online && <p className="notice">Du är offline. Sökning och hämtning fungerar inte, men du kan öppna senaste låtar, klistra in text och transponera.</p>}
 
       {showSettings && (
         <section className="panel settings">
@@ -137,6 +158,7 @@ export default function App() {
             <input type="url" value={stored.proxyUrl} placeholder={BUILT_IN_PROXY || 'https://script.google.com/macros/s/…/exec'} onChange={(e) => updateSettings({ ...stored, proxyUrl: e.target.value.trim() })} />
             <small>{BUILT_IN_PROXY ? 'En proxy är redan inbyggd i appen. Fyll bara i här om du vill använda en annan. ' : ''}Behövs för Ultimate Guitar och webbsökning. Se <a href="https://github.com/MsYazz/chopro-dl/blob/main/proxy/README.md" target="_blank" rel="noreferrer">instruktionen</a>.</small>
           </label>
+          {!installed && isIos && <p className="muted">Installera på iPhone/iPad: tryck på Dela-knappen i Safari och välj <strong>Lägg till på hemskärmen</strong>.</p>}
         </section>
       )}
 
@@ -178,6 +200,26 @@ export default function App() {
             </ul>
           )}
           {searched && !busy && sortedHits.length === 0 && Object.keys(errors).length === 0 && <p className="muted">Inga träffar.</p>}
+
+          {recent.length > 0 && !searched && (
+            <section className="recent">
+              <h3>Senast öppnade</h3>
+              <ul className="results">
+                {recent.map((r) => (
+                  <li key={r.openedAt} className="recent-row">
+                    <button className="result" onClick={() => open(r)}>
+                      <span className="result-main">
+                        <strong>{r.title}</strong>
+                        {r.artist && <span className="artist">{r.artist}</span>}
+                      </span>
+                      <span className="open">Öppna</span>
+                    </button>
+                    <button className="ghost small remove" aria-label={`Ta bort ${r.title} från listan`} onClick={() => setRecent(removeRecent(r.openedAt))}>✕</button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="panel import">
             <h3>Har du redan en fil eller länk?</h3>

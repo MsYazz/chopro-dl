@@ -14,6 +14,7 @@ Appen är helt statisk (Vite + React) och körs på GitHub Pages. Den har ingen 
 - **Automatisk rättning** enligt korrigeringsspecifikationen (se nedan), med logg över varje ändring och en lista över rader att granska manuellt.
 - **Förhandsvisning** med ackord ovanför texten, och **transponering** i halvtonssteg med val av ♯/♭.
 - **Kopiera** eller **ladda ned** den rättade och transponerade filen.
+- **Installerbar PWA**: lägg appen på hemskärmen eller skrivbordet. Appskalet fungerar offline, och de 25 senast öppnade låtarna sparas i webbläsaren så du kan öppna, transponera och kopiera dem utan nät. På Android kan du dela text eller en länk från en annan app direkt till ChoPro DL.
 
 ## Rättningsregler
 

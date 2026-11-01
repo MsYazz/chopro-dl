@@ -42,8 +42,13 @@ input, select, textarea {
 }
 input:focus, textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.app { max-width: 920px; margin: 0 auto; padding: 0 16px 48px; }
-.topbar { display: flex; justify-content: space-between; align-items: center; padding: 18px 0 12px; }
+.app { max-width: 920px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(18px + env(safe-area-inset-top)) 0 12px; }
+.topbar-actions { display: flex; gap: 8px; }
+.recent h3 { margin: 20px 0 0; font-size: 1rem; }
+.recent-row { display: flex; gap: 6px; align-items: stretch; }
+.recent-row .result { flex: 1; grid-template-columns: 1fr auto; }
+.recent-row .remove { color: var(--muted); }
 .logo { margin: 0; font-size: 1.5rem; letter-spacing: -.02em; cursor: pointer; }
 .logo span { color: var(--accent); }
 
